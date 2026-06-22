@@ -1,0 +1,5 @@
+.env
+env
+hybrid_search_with_reranking_rag
+Embeddings
+__pycache__
