@@ -1,0 +1,17 @@
+2026-06-23 15:50:53,333 - Login failed: Invalid credentials for email samyak@gmail.com
+2026-06-23 15:53:50,846 - Signup successful: User registered with email samyak@gmail.com
+2026-06-23 15:54:45,595 - Login successful: Session established for user samyak@gmail.com
+2026-06-23 15:55:58,270 - Logout successful: Refresh token revoked and session terminated
+2026-06-23 15:56:13,174 - Replay attack or revoked token attempt detected for JTI: 27da33ae-4dd1-4ec4-97a2-a3e0fb1f08fb
+2026-06-23 15:56:13,174 - Token refresh failed: Invalid refresh token signature or token revoked
+2026-06-23 15:56:29,134 - Forgot password successful: Reset token generated for samyak@gmail.com
+2026-06-23 15:56:51,972 - Password reset failed: New password matches current password for samyak@gmail.com
+2026-06-23 15:57:03,661 - Password reset successful: Password changed for user samyak@gmail.com
+2026-06-23 17:06:09,139 - Signup failed: Email samyak@gmail.com already exists
+2026-06-23 17:06:20,679 - Login failed: Invalid credentials for email samyak@gmail.com
+2026-06-23 17:06:30,377 - Login successful: Session established for user samyak@gmail.com
+2026-06-23 17:06:54,191 - Token refresh successful: Access and Refresh tokens rotated for user samyak@gmail.com
+2026-06-23 17:07:12,581 - Forgot password successful: Reset token generated for samyak@gmail.com: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzYW15YWtAZ21haWwuY29tIiwiYWN0aW9uIjoicGFzc3dvcmRfcmVzZXQiLCJleHAiOjE3ODIyMTgyMzJ9.84PRtammMBSOE6UO9pBymrZ1HWlKbj5mwMiGFj_hAzc
+2026-06-23 17:07:47,515 - Password reset failed: Invalid or expired reset token
+2026-06-23 17:49:42,669 - Signup successful: User registered with email samyak@thoughtwin.com
+2026-06-23 17:49:51,221 - Login successful: Session established for user samyak@thoughtwin.com

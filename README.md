@@ -29,14 +29,22 @@ crag_with_langsmith_tracing/
 │   ├── redis_client.py
 │   └── mongodb_client.py
 ├── services/
-│   ├── cache_service.py
-│   ├── embeddings_service.py
-│   └── chat_history_service.py
+│   ├── auth/
+│   │   └── service.py
+│   └── rag/
+│       ├── cache.py
+│       ├── embeddings.py
+│       └── chat_history.py
 ├── pipeline/
 │   └── agent.py
 └── api/
+    ├── auth/
+    │   ├── router.py
+    │   └── schemas.py
+    ├── rag/
+    │   ├── router.py
+    │   └── schemas.py
     ├── schemas.py
-    ├── router.py
     └── dependencies.py
 ```
 

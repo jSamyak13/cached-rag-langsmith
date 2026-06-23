@@ -3,3 +3,5 @@ env
 hybrid_search_with_reranking_rag
 Embeddings
 __pycache__
+frontend/node_modules
+backend/venv
