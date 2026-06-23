@@ -1,21 +1,32 @@
 import logging
-from typing import Annotated
+import json
+from typing import Annotated, List
 from typing_extensions import TypedDict
+from crag_with_langsmith_tracing.api.schemas import RAGResponse
 from langchain.agents import create_agent
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.mongodb import MongoDBSaver
+from crag_with_langsmith_tracing.clients.mongodb_client import mongo_client
+from crag_with_langsmith_tracing.services.chat_history_service import save_chat_log
 from langchain.tools import tool
 from langchain_core.messages import AIMessage
-from config.settings import settings
-from services.cache_service import get_docs, save_docs, get_exact_cache, save_exact_cache
-from services.embeddings_service import create_or_load_embeddings
+from crag_with_langsmith_tracing.config.settings import settings
+from crag_with_langsmith_tracing.services.cache_service import get_docs, save_docs, get_exact_cache, save_exact_cache
+from crag_with_langsmith_tracing.services.embeddings_service import create_or_load_embeddings
 from langchain_openai import ChatOpenAI
-from prompts.prompt import RAG_PROMPT
+from crag_with_langsmith_tracing.prompts.prompt import RAG_PROMPT
+from langchain_core.output_parsers import PydanticOutputParser
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 logger = logging.getLogger(__name__)
 
 @tool
+@retry(
+    wait=wait_random_exponential(min=1, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True
+)
 def retrieve_docs(query: str) -> str:
     """
     Queries a vector database containing authoritative knowledge across 6 specific domains:
@@ -61,6 +72,9 @@ def retrieve_docs(query: str) -> str:
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
+parser = PydanticOutputParser(pydantic_object=RAGResponse)
+SYSTEM_PROMPT = RAG_PROMPT + "\n\n" + parser.get_format_instructions()
+
 try:
     llm = ChatOpenAI(
             model=settings.LLM_MODEL,
@@ -69,7 +83,7 @@ try:
     rag_agent = create_agent(
         model=llm,
         tools=[retrieve_docs],
-        system_prompt=RAG_PROMPT
+        system_prompt=SYSTEM_PROMPT
     )
 except Exception as e:
     logger.error(f"Failed to create agent: {e}")
@@ -84,11 +98,11 @@ def run_agent(state: State):
         logger.info("Checking exact cache")
         cached_answer = get_exact_cache(query)
         if cached_answer:
-            logger.info(f"Answer cache hit. Cached answer: {cached_answer['answer']}")
+            logger.info(f"Answer cache hit. Cached answer: {cached_answer.get('answer')}")
             return {
                 "messages": [
                     AIMessage(
-                        content=cached_answer["answer"]
+                        content=json.dumps(cached_answer)
                     )
                 ]
             }
@@ -99,20 +113,28 @@ def run_agent(state: State):
         logger.info("Invoking LLM agent")
         result = rag_agent.invoke(state)
         answer = result["messages"][-1].content
-        logger.info(f"LLM agent execution finished. Response answer: {answer[:15]}")
+        logger.info(f"LLM agent execution finished. Response content: {answer[:15]}")
         
+        try:
+            parsed = parser.parse(answer)
+            answer_dict = parsed.model_dump()
+        except Exception as pe:
+            logger.warning(f"Failed to parse LLM response as JSON schema: {pe}")
+            answer_dict = {"answer": answer, "sources": []}
+
         logger.info("Saving response to exact cache")
-        save_exact_cache(query, answer)
+        save_exact_cache(query, answer_dict)
         return {
             "messages": [
-                result["messages"][-1]
+                AIMessage(content=json.dumps(answer_dict))
             ]
         }
     except Exception as e:
         logger.error(f"Error in run_agent node: {e}")
+        error_dict = {"answer": "An error occurred while processing your request.", "sources": []}
         return {
             "messages": [
-                AIMessage(content="An error occurred while processing your request.")
+                AIMessage(content=json.dumps(error_dict))
             ]
         }
 
@@ -122,25 +144,37 @@ builder.add_edge(START, "agent")
 builder.add_edge("agent", END)
 
 try:
-    graph = builder.compile(checkpointer=InMemorySaver())
+    if mongo_client:
+        checkpointer = MongoDBSaver(
+            client=mongo_client,
+            db_name=settings.MONGODB_DB
+        )
+        graph = builder.compile(checkpointer=checkpointer)
+    else:
+        raise ValueError("MongoDB client is not initialized")
 except Exception as e:
     logger.error(f"Failed to compile StateGraph: {e}")
     graph = None
 
-def run_query(query: str, thread_id: str) -> str:
+def run_query(query: str, thread_id: str) -> dict:
     if not graph:
         logger.error("StateGraph graph is not compiled")
-        return "System error: StateGraph graph is not compiled"
+        return {"answer": "System error: StateGraph graph is not compiled", "sources": []}
     try:
         logger.info(f"Starting run_query with thread_id: {thread_id} and query: {query}")
         config = {"configurable": {"thread_id": thread_id}}
         result = graph.invoke({"messages": [("user", query)]}, config=config)
-        final_response = result["messages"][-1].content
-        logger.info(f"run_query completed successfully. Final response: {final_response[:10]}")
+        final_response_str = result["messages"][-1].content
+        try:
+            final_response = json.loads(final_response_str)
+        except Exception:
+            final_response = {"answer": final_response_str, "sources": []}
+        logger.info(f"run_query completed successfully. Final response: {final_response.get('answer', '')[:10]}")
+        save_chat_log(thread_id, query, final_response.get("answer", ""))
         print("="*40, "AI Response Start", "="*40)
         return final_response
     except Exception as e:
         logger.error(f"Error invoking query: {e}")
-        return "An error occurred during query execution."
+        return {"answer": "An error occurred during query execution.", "sources": []}
 
 

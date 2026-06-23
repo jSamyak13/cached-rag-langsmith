@@ -1,7 +1,7 @@
 import sys
 import logging
-from config.logging_config import setup_logging
-from pipeline.agent import run_query
+from crag_with_langsmith_tracing.config.logging_config import setup_logging
+from crag_with_langsmith_tracing.pipeline.agent import run_query
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ def main():
                 break
             
             result = run_query(user_input, "0000")
-            print(result)
+            print(f"Answer: {result.get('answer')}")
+            print(f"Sources: {result.get('sources')}")
         except KeyboardInterrupt:
             logger.info("Interrupted by user, exiting")
             break

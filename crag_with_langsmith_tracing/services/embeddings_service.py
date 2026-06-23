@@ -4,7 +4,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_chroma import Chroma
-from config.settings import settings
+from crag_with_langsmith_tracing.config.settings import settings
 
 logger = logging.getLogger(__name__)
 try:
@@ -20,14 +20,17 @@ def load_data(path: str):
     try:
         logger.info(f"Loading data from PDF: {path}")
         loader = PyPDFLoader(path).load()
-        splits = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100).split_documents(loader)
+        splits = RecursiveCharacterTextSplitter(
+            chunk_size=settings.CHUNK_SIZE,
+            chunk_overlap=settings.CHUNK_OVERLAP
+        ).split_documents(loader)
         return splits
     except Exception as e:
         logger.error(f"Error loading PDF from path {path}: {e}")
         return []
 
 def create_or_load_embeddings(path: str):
-    embd_dir = "Embeddings"
+    embd_dir = settings.EMBEDDINGS_DIR
     if not embeddings_model:
         logger.error("Embeddings model is not initialized")
         return None

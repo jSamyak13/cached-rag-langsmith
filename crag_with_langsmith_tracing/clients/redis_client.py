@@ -1,6 +1,6 @@
 import redis
 import logging
-from config.settings import settings
+from crag_with_langsmith_tracing.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

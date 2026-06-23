@@ -1,7 +1,8 @@
 import hashlib
 import json
 import logging
-from clients.redis_client import redis_client
+from crag_with_langsmith_tracing.clients.redis_client import redis_client
+from crag_with_langsmith_tracing.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def get_exact_cache(query: str):
         logger.error(f"Error retrieving exact cache: {e}")
     return None
 
-def save_exact_cache(query: str, answer: str):
+def save_exact_cache(query: str, data: dict):
     if not redis_client:
         logger.warning("Redis client is not available")
         return
@@ -33,8 +34,8 @@ def save_exact_cache(query: str, answer: str):
         key = get_cache_key(query)
         redis_client.setex(
             key,
-            86400,
-            json.dumps({"answer": answer})
+            settings.EXACT_CACHE_TTL,
+            json.dumps(data)
         )
     except Exception as e:
         logger.error(f"Error saving exact cache: {e}")
@@ -60,7 +61,7 @@ def save_docs(query: str, docs: list):
         key = f"docs:{get_cache_key(query)}"
         redis_client.setex(
             key,
-            21600,
+            settings.DOCS_CACHE_TTL,
             json.dumps(docs)
         )
     except Exception as e:
